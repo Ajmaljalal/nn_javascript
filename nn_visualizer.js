@@ -740,7 +740,7 @@ function displayFeedforwardCalc(container) {
     container.innerHTML = `
       <div style="min-height: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
         <div class="neuron-info">
-          <strong>🎯 Ready to calculate:</strong><br>
+          <strong>Ready to calculate:</strong><br>
           Layer ${currentLayer + 2} (${LAYER_NAMES[currentLayer + 1]}), Neuron ${currentNeuron}
         </div>
         <p style="color: #718096; margin-top: 15px; font-size: 15px;">Click "Next Step" to start weighted sum calculation.</p>
@@ -838,7 +838,7 @@ function displayBackpropCalc(container) {
       <div class="calculation-box">
         <strong style="color: #e53e3e;">◀️ STEP 1: Calculate Gradient (Error) for Output Neuron ${neuronIdx}</strong>
         
-        <div style="margin: 20px 0; padding: 15px; background: #fef5e7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+        <div style="margin: 20px 0; padding: 15px; background: #fef5e7; border-radius: 8px;">
           <strong style="color: #92400e;">📖 What we're doing (notation):</strong><br>
           We use the <strong>Chain Rule</strong> with the standard symbols:<br>
           <code>L</code> = loss, <code>a</code> = activation/output of this neuron, <code>z</code> = weighted sum before activation, <code>w</code> = weight.<br>
@@ -852,7 +852,7 @@ function displayBackpropCalc(container) {
         </div>
         
         <div style="margin: 20px 0;">
-          <div style="padding: 12px; background: #fef3c7; border-radius: 8px; margin: 10px 0; border-left: 3px solid #f59e0b;">
+          <div style="padding: 12px; background: #fef3c7; border-radius: 8px; margin: 10px 0;">
             <strong>📊 Loss function (MSE):</strong><br>
             <span style="font-size: 15px; margin-left: 20px;">
               L = 0.5 × (a - y)²
@@ -937,7 +937,7 @@ function displayBackpropCalc(container) {
       <div class="calculation-box">
         <strong style="color: #e53e3e;">◀️ STEP 2: Calculate ∂L/∂w for All Weights to Neuron ${neuronIdx}</strong>
         
-        <div style="margin: 20px 0; padding: 15px; background: #fef5e7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+        <div style="margin: 20px 0; padding: 15px; background: #fef5e7; border-radius: 8px;">
           <strong style="color: #92400e;">📖 What we're doing:</strong><br>
           For each weight connecting to this neuron, we calculate <strong>∂L/∂w</strong> (how the loss changes with that weight).
         </div>
@@ -958,7 +958,7 @@ function displayBackpropCalc(container) {
       const activation = layerValues[currentLayer - 1][i];
       const weightGradient = weightGradients[layerIdx][neuronIdx][i];
       html += `
-        <div style="padding: 10px; background: #f0f9ff; border-radius: 8px; margin: 8px 0; border-left: 3px solid #3b82f6;">
+        <div style="padding: 10px; background: #f0f9ff; border-radius: 8px; margin: 8px 0;">
           <strong>Weight from Neuron ${i} in previous layer:</strong><br>
             <span style="margin-left: 20px; font-size: 15px;">
             ∂L/∂w = δ × a<sub>prev</sub> = ${neuronGradient.toFixed(4)} × ${activation.toFixed(4)} = <strong style="color: #1e40af;">${weightGradient.toFixed(4)}</strong>
@@ -991,7 +991,7 @@ function displayBackpropCalc(container) {
       <div class="calculation-box">
         <strong style="color: #e53e3e;">◀️ STEP 3: Propagate Error to Layer ${currentLayer + 1}, Neuron ${neuronIdx}</strong>
         
-        <div style="margin: 20px 0; padding: 15px; background: #fef5e7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+        <div style="margin: 20px 0; padding: 15px; background: #fef5e7; border-radius: 8px;">
           <strong style="color: #92400e;">📖 What we're doing:</strong><br>
           Calculate how much error this neuron contributed to the next layer's errors. We look at all weights going forward and their errors.
         </div>
@@ -1047,7 +1047,7 @@ function displayUpdateCalc(container) {
     <div class="calculation-box">
       <strong style="color: #38a169;">💾 FINAL STEP: Gradient Descent - Update All Weights & Biases</strong>
       
-      <div style="margin: 20px 0; padding: 15px; background: #ecfdf5; border-radius: 8px; border-left: 4px solid #10b981;">
+      <div style="margin: 20px 0; padding: 15px; background: #ecfdf5; border-radius: 8px;">
         <strong style="color: #065f46;">📖 What we're doing:</strong><br>
         Now we use <strong>Gradient Descent</strong>: moving each weight in the direction that reduces the cost. We subtract the gradient (times learning rate) from each weight.
       </div>
@@ -1081,7 +1081,7 @@ function displayUpdateCalc(container) {
       const change = LEARNING_RATE * gradient;
 
       html += `
-        <div style="padding: 10px; background: #f0fdf4; border-radius: 8px; margin: 8px 0; border-left: 3px solid #22c55e;">
+        <div style="padding: 10px; background: #f0fdf4; border-radius: 8px; margin: 8px 0;">
           <strong>Weight[0][0][${i}]:</strong><br>
           <div style="margin-left: 20px; font-size: 14px; margin-top: 5px;">
             <div>w<sub>old</sub> = ${oldWeight.toFixed(4)}</div>

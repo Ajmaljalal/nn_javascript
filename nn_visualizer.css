@@ -39,7 +39,7 @@ body {
 
 .control-panel {
   background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-  padding: 12px 25px;
+  padding: 6px 25px 10px;
   border-radius: 16px;
   margin-bottom: 15px;
   border: 2px solid #e2e8f0;
@@ -51,7 +51,7 @@ body {
   gap: 12px;
   justify-content: center;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: 4px;
 }
 
 button {
@@ -166,8 +166,6 @@ button:disabled {
 .panel h3 {
   color: #2d3748;
   margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 3px solid #667eea;
   font-size: 1.35em;
   font-weight: 700;
   flex-shrink: 0;
@@ -237,7 +235,6 @@ canvas {
   padding: 16px;
   border-radius: 10px;
   margin: 12px 0;
-  border-left: 4px solid #38b2ac;
   font-weight: 600;
   color: #234e52;
   font-size: 15px;
@@ -256,7 +253,6 @@ canvas {
   padding: 18px;
   border-radius: 10px;
   margin: 12px 0;
-  border-left: 4px solid #805ad5;
   font-weight: 600;
   color: #44337a;
 }
@@ -388,10 +384,7 @@ canvas {
   margin-bottom: 12px;
   font-size: 1.1em;
   font-weight: 700;
-  padding: 10px 15px;
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-  border-radius: 8px;
-  border-left: 4px solid #667eea;
+  padding: 10px 0;
 }
 
 .info-badge {

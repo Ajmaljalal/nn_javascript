@@ -195,7 +195,7 @@ class NeuralNetwork {
   }
 
   /**
-   * 🎯 BACKPROPAGATION: Figure out how wrong we were and how to fix it
+   * BACKPROPAGATION: Figure out how wrong we were and how to fix it
    * 
    * SIMPLE EXPLANATION:
    * Imagine you're shooting arrows at a target. Backpropagation is like:

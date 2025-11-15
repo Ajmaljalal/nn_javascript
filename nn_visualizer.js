@@ -606,16 +606,17 @@ function renderUpdateComparison() {
   // First show all weight matrices
   html += '<div style="margin-bottom: 40px;">';
   html += '<h3 style="color: #2d3748; margin-bottom: 20px; text-align: center;">⚖️ Weight Matrices</h3>';
-  
+
   for (let layerIdx = 0; layerIdx < weights.length; layerIdx++) {
     const oldMatrix = oldWeights[layerIdx];
     const newMatrix = weights[layerIdx];
 
     html += `<div class="layer-section" style="margin-bottom: 30px;">`;
     html += `<h4 style="text-align: center; margin-bottom: 15px;">Layer ${layerIdx + 1} → ${layerIdx + 2}</h4>`;
-    html += `<div style="display: flex; gap: 20px; align-items: flex-start; justify-content: center; flex-wrap: wrap;">`;
+    html += `<div style="display: flex; gap: 20px; align-items: flex-start; justify-content: center;">`;
 
     // Old weights table
+    html += '<div style="flex: 1; min-width: 0;">';
     html += '<div class="matrix-section">';
     html += `<div class="matrix-label">Before update (w<sub>old</sub>)</div>`;
     html += '<div class="matrix-grid">';
@@ -629,9 +630,10 @@ function renderUpdateComparison() {
       }
       html += '</div>';
     }
-    html += '</div></div>';
+    html += '</div></div></div>';
 
     // New weights table with color coding
+    html += '<div style="flex: 1; min-width: 0;">';
     html += '<div class="matrix-section">';
     html += `<div class="matrix-label">After update (w<sub>new</sub>)</div>`;
     html += '<div class="matrix-grid">';
@@ -641,7 +643,7 @@ function renderUpdateComparison() {
         const oldVal = oldMatrix[row][col];
         const newVal = newMatrix[row][col];
         const delta = newVal - oldVal;
-        
+
         let bgColor = '#ffffff'; // white for no change
         if (Math.abs(delta) > 0.0001) {
           if (delta > 0) {
@@ -650,14 +652,14 @@ function renderUpdateComparison() {
             bgColor = '#fed7d7'; // red for decrease
           }
         }
-        
+
         html += `<div class="matrix-cell" style="background: ${bgColor}; font-size: 12px;">
           ${newVal.toFixed(3)}
         </div>`;
       }
       html += '</div>';
     }
-    html += '</div></div>';
+    html += '</div></div></div>';
 
     html += '</div></div>'; // end flex and layer-section
   }
@@ -666,16 +668,17 @@ function renderUpdateComparison() {
   // Then show all bias vectors
   html += '<div style="margin-bottom: 20px;">';
   html += '<h3 style="color: #2d3748; margin-bottom: 20px; text-align: center;">➕ Bias Vectors</h3>';
-  
+
   for (let layerIdx = 0; layerIdx < biases.length; layerIdx++) {
     const oldBiasVec = oldBiases[layerIdx];
     const newBiasVec = biases[layerIdx];
 
     html += `<div class="layer-section" style="margin-bottom: 30px;">`;
     html += `<h4 style="text-align: center; margin-bottom: 15px;">Layer ${layerIdx + 2}</h4>`;
-    html += `<div style="display: flex; gap: 20px; align-items: flex-start; justify-content: center; flex-wrap: wrap;">`;
+    html += `<div style="display: flex; gap: 20px; align-items: flex-start; justify-content: center;">`;
 
     // Old biases
+    html += '<div style="flex: 1; min-width: 0;">';
     html += '<div class="matrix-section">';
     html += `<div class="matrix-label">Before update (b<sub>old</sub>)</div>`;
     html += '<div class="bias-vector">';
@@ -685,9 +688,10 @@ function renderUpdateComparison() {
         b<sub>${i}</sub> = ${oldB.toFixed(3)}
       </div>`;
     }
-    html += '</div></div>';
+    html += '</div></div></div>';
 
     // New biases with color coding
+    html += '<div style="flex: 1; min-width: 0;">';
     html += '<div class="matrix-section">';
     html += `<div class="matrix-label">After update (b<sub>new</sub>)</div>`;
     html += '<div class="bias-vector">';
@@ -695,7 +699,7 @@ function renderUpdateComparison() {
       const oldB = oldBiasVec[i];
       const newB = newBiasVec[i];
       const deltaB = newB - oldB;
-      
+
       let bgColorB = '#ffffff'; // white for no change
       if (Math.abs(deltaB) > 0.0001) {
         if (deltaB > 0) {
@@ -704,12 +708,12 @@ function renderUpdateComparison() {
           bgColorB = '#fed7d7'; // red for decrease
         }
       }
-      
+
       html += `<div class="bias-cell" style="background: ${bgColorB}; font-size: 12px;">
         b<sub>${i}</sub> = ${newB.toFixed(3)}
       </div>`;
     }
-    html += '</div></div>';
+    html += '</div></div></div>';
 
     html += '</div></div>'; // end flex and layer-section
   }
@@ -730,40 +734,41 @@ function displayCalculation() {
     // Show both panels in grid
     if (networkPanel) networkPanel.style.display = 'block';
     if (mainGrid) mainGrid.style.display = 'grid';
+    if (calculationPanel) {
+      const panelHeader = calculationPanel.querySelector('h3');
+      if (panelHeader) panelHeader.style.display = 'block';
+    }
     displayFeedforwardCalc(container);
   } else if (phase === 'backprop') {
     // Show both panels in grid
     if (networkPanel) networkPanel.style.display = 'block';
     if (mainGrid) mainGrid.style.display = 'grid';
+    if (calculationPanel) {
+      const panelHeader = calculationPanel.querySelector('h3');
+      if (panelHeader) panelHeader.style.display = 'block';
+    }
     displayBackpropCalc(container);
   } else if (phase === 'update') {
     // Show both panels in grid
     if (networkPanel) networkPanel.style.display = 'block';
     if (mainGrid) mainGrid.style.display = 'grid';
+    if (calculationPanel) {
+      const panelHeader = calculationPanel.querySelector('h3');
+      if (panelHeader) panelHeader.style.display = 'block';
+    }
     displayUpdateCalc(container);
   } else if (phase === 'complete') {
     // Hide network panel and make calculation panel full width
     if (networkPanel) networkPanel.style.display = 'none';
     if (mainGrid) mainGrid.style.display = 'block';
-    if (calculationPanel) calculationPanel.style.maxWidth = '100%';
-    
-    container.innerHTML = `
-      <div style="text-align: center; padding: 40px 30px 20px; color: #48bb78;">
-        <h2 style="font-size: 2em; margin-bottom: 15px;">🎉 Training Complete!</h2>
-        <p style="color: #718096; font-size: 1.1em;">
-          The network has completed one full training cycle:<br>
-          <strong>Feedforward → Backpropagation → Weight Update</strong>
-        </p>
-        <div style="margin-top: 25px; padding: 20px; background: #f7fafc; border-radius: 12px; display: inline-block;">
-          <p style="color: #2d3748; margin: 5px 0;"><strong>📥 Input:</strong> [${currentInput.join(', ')}]</p>
-          <p style="color: #2d3748; margin: 5px 0;"><strong>🎯 Target:</strong> [${currentTarget.join(', ')}]</p>
-          <p style="color: #2d3748; margin: 5px 0;"><strong>📤 Output:</strong> [${layerValues[SIZES.length - 1].map(v => v.toFixed(3)).join(', ')}]</p>
-        </div>
-      </div>
-      <div style="margin-top: 10px;">
-        ${renderUpdateComparison()}
-      </div>
-    `;
+    if (calculationPanel) {
+      calculationPanel.style.maxWidth = '100%';
+      // Hide the panel header
+      const panelHeader = calculationPanel.querySelector('h3');
+      if (panelHeader) panelHeader.style.display = 'none';
+    }
+
+    container.innerHTML = renderUpdateComparison();
   }
 }
 

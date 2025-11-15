@@ -1,0 +1,16 @@
+{
+  "name": "neural_networks_js",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "nn_1_input.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "mnist": "^1.1.0"
+  }
+}

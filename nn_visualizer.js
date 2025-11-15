@@ -75,7 +75,6 @@ window.resetNetwork = function () {
   drawNetwork();
   displayLayerValues();
   displayCalculation();
-  updateProgress();
 }
 
 window.nextStep = function () {
@@ -100,7 +99,6 @@ function stepFeedforward() {
     drawNetwork();
     displayLayerValues();
     displayCalculation();
-    updateProgress();
     return;
   }
 
@@ -136,7 +134,6 @@ function stepFeedforward() {
   drawNetwork();
   displayLayerValues();
   displayCalculation();
-  updateProgress();
 }
 
 function stepBackprop() {
@@ -263,7 +260,6 @@ function stepBackprop() {
   drawNetwork();
   displayLayerValues();
   displayCalculation();
-  updateProgress();
 }
 
 function stepUpdate() {
@@ -289,7 +285,6 @@ function stepUpdate() {
   drawNetwork();
   displayLayerValues();
   displayCalculation();
-  updateProgress();
 }
 
 window.skipToBackprop = function () {
@@ -329,45 +324,6 @@ window.stopAuto = function () {
 
 function updateStatus(message) {
   // Status bar removed - function kept for compatibility
-}
-
-function updateProgress() {
-  let totalSteps = 0;
-  let completedSteps = 0;
-
-  // Feedforward steps
-  const ffSteps = SIZES.slice(1).reduce((a, b) => a + b, 0) * 3;
-  totalSteps += ffSteps;
-
-  if (phase === 'feedforward') {
-    const neuronsCompleted = SIZES.slice(1, currentLayer + 1).reduce((a, b) => a + b, 0) + currentNeuron;
-    const substepProgress = ['idle', 'weighted_sum', 'add_bias', 'sigmoid'].indexOf(currentSubStep);
-    completedSteps = neuronsCompleted * 3 + substepProgress;
-  } else {
-    completedSteps = ffSteps;
-  }
-
-  // Backprop steps
-  const bpSteps = SIZES.length - 1;
-  totalSteps += bpSteps;
-
-  if (phase === 'backprop') {
-    completedSteps += (SIZES.length - 1 - currentLayer);
-  } else if (phase === 'update' || phase === 'complete') {
-    completedSteps += bpSteps;
-  }
-
-  // Update step
-  totalSteps += 1;
-  if (phase === 'complete') {
-    completedSteps += 1;
-  }
-
-  const percentage = Math.floor((completedSteps / totalSteps) * 100);
-  const progressBar = document.getElementById('progress');
-  const progressText = document.getElementById('progressText');
-  progressBar.style.width = percentage + '%';
-  progressText.textContent = percentage + '%';
 }
 
 function drawNetwork() {
@@ -775,12 +731,14 @@ function displayCalculation() {
 function displayFeedforwardCalc(container) {
   if (currentSubStep === 'idle' && currentLayer < SIZES.length - 1) {
     container.innerHTML = `
-      <div class="neuron-info">
-        <strong>🎯 Ready to calculate:</strong><br>
-        Layer ${currentLayer + 2} (${LAYER_NAMES[currentLayer + 1]}), Neuron ${currentNeuron}
+      <div style="min-height: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <div class="neuron-info">
+          <strong>🎯 Ready to calculate:</strong><br>
+          Layer ${currentLayer + 2} (${LAYER_NAMES[currentLayer + 1]}), Neuron ${currentNeuron}
+        </div>
+        <p style="color: #718096; margin-top: 15px; font-size: 15px;">Click "Next Step" to start weighted sum calculation.</p>
+        ${renderWeightMatrix()}
       </div>
-      <p style="color: #718096; margin-top: 15px; font-size: 15px;">Click "Next Step" to start weighted sum calculation.</p>
-      ${renderWeightMatrix()}
     `;
   } else if (currentSubStep === 'weighted_sum') {
     let html = `

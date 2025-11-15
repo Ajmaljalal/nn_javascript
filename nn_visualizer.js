@@ -624,7 +624,7 @@ function renderUpdateComparison() {
       html += '<div class="matrix-row">';
       for (let col = 0; col < oldMatrix[row].length; col++) {
         const oldVal = oldMatrix[row][col];
-        html += `<div class="matrix-cell" style="background: #f7fafc; font-size: 12px;">
+        html += `<div class="matrix-cell" style="background: #f7fafc;">
           ${oldVal.toFixed(3)}
         </div>`;
       }
@@ -653,7 +653,7 @@ function renderUpdateComparison() {
           }
         }
 
-        html += `<div class="matrix-cell" style="background: ${bgColor}; font-size: 12px;">
+        html += `<div class="matrix-cell" style="background: ${bgColor};">
           ${newVal.toFixed(3)}
         </div>`;
       }
@@ -684,7 +684,7 @@ function renderUpdateComparison() {
     html += '<div class="bias-vector">';
     for (let i = 0; i < oldBiasVec.length; i++) {
       const oldB = oldBiasVec[i];
-      html += `<div class="bias-cell" style="background: #f7fafc; font-size: 12px;">
+      html += `<div class="bias-cell" style="background: #f7fafc;">
         b<sub>${i}</sub> = ${oldB.toFixed(3)}
       </div>`;
     }
@@ -709,7 +709,7 @@ function renderUpdateComparison() {
         }
       }
 
-      html += `<div class="bias-cell" style="background: ${bgColorB}; font-size: 12px;">
+      html += `<div class="bias-cell" style="background: ${bgColorB};">
         b<sub>${i}</sub> = ${newB.toFixed(3)}
       </div>`;
     }

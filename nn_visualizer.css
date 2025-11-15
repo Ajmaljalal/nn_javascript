@@ -324,6 +324,7 @@ canvas {
   flex: 1;
   min-width: 65px;
   height: 42px;
+  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;

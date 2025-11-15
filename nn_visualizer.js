@@ -14,6 +14,10 @@ let errors = [];
 let weightGradients = [];
 let biasGradients = [];
 
+// Snapshots for visualizing before/after updates
+let oldWeights = null;
+let oldBiases = null;
+
 let currentInput = [0.5, 0.8, 0.3, 0.9];
 let currentTarget = [1.0, 0.0];
 
@@ -56,6 +60,8 @@ function initNetwork() {
   errors = [];
   weightGradients = [];
   biasGradients = [];
+  oldWeights = null;
+  oldBiases = null;
 
   phase = 'feedforward';
   currentLayer = 0;
@@ -261,6 +267,12 @@ function stepBackprop() {
 }
 
 function stepUpdate() {
+  // Take snapshots of weights and biases before updating so we can visualize the change
+  oldWeights = weights.map(layer =>
+    layer.map(neuronWeights => neuronWeights.slice())
+  );
+  oldBiases = biases.map(layerBiases => layerBiases.slice());
+
   // Update all weights and biases
   for (let i = 0; i < weights.length; i++) {
     for (let j = 0; j < weights[i].length; j++) {
@@ -585,18 +597,158 @@ function renderWeightMatrix() {
   return html;
 }
 
+// Show side-by-side comparison of weights and biases before vs after the update
+function renderUpdateComparison() {
+  if (!oldWeights || !oldBiases) return '';
+
+  let html = '<div style="margin-top: 20px; padding: 20px;">';
+
+  // First show all weight matrices
+  html += '<div style="margin-bottom: 40px;">';
+  html += '<h3 style="color: #2d3748; margin-bottom: 20px; text-align: center;">⚖️ Weight Matrices</h3>';
+  
+  for (let layerIdx = 0; layerIdx < weights.length; layerIdx++) {
+    const oldMatrix = oldWeights[layerIdx];
+    const newMatrix = weights[layerIdx];
+
+    html += `<div class="layer-section" style="margin-bottom: 30px;">`;
+    html += `<h4 style="text-align: center; margin-bottom: 15px;">Layer ${layerIdx + 1} → ${layerIdx + 2}</h4>`;
+    html += `<div style="display: flex; gap: 20px; align-items: flex-start; justify-content: center; flex-wrap: wrap;">`;
+
+    // Old weights table
+    html += '<div class="matrix-section">';
+    html += `<div class="matrix-label">Before update (w<sub>old</sub>)</div>`;
+    html += '<div class="matrix-grid">';
+    for (let row = 0; row < oldMatrix.length; row++) {
+      html += '<div class="matrix-row">';
+      for (let col = 0; col < oldMatrix[row].length; col++) {
+        const oldVal = oldMatrix[row][col];
+        html += `<div class="matrix-cell" style="background: #f7fafc; font-size: 12px;">
+          ${oldVal.toFixed(3)}
+        </div>`;
+      }
+      html += '</div>';
+    }
+    html += '</div></div>';
+
+    // New weights table with color coding
+    html += '<div class="matrix-section">';
+    html += `<div class="matrix-label">After update (w<sub>new</sub>)</div>`;
+    html += '<div class="matrix-grid">';
+    for (let row = 0; row < newMatrix.length; row++) {
+      html += '<div class="matrix-row">';
+      for (let col = 0; col < newMatrix[row].length; col++) {
+        const oldVal = oldMatrix[row][col];
+        const newVal = newMatrix[row][col];
+        const delta = newVal - oldVal;
+        
+        let bgColor = '#ffffff'; // white for no change
+        if (Math.abs(delta) > 0.0001) {
+          if (delta > 0) {
+            bgColor = '#c6f6d5'; // green for increase
+          } else {
+            bgColor = '#fed7d7'; // red for decrease
+          }
+        }
+        
+        html += `<div class="matrix-cell" style="background: ${bgColor}; font-size: 12px;">
+          ${newVal.toFixed(3)}
+        </div>`;
+      }
+      html += '</div>';
+    }
+    html += '</div></div>';
+
+    html += '</div></div>'; // end flex and layer-section
+  }
+  html += '</div>'; // end weights section
+
+  // Then show all bias vectors
+  html += '<div style="margin-bottom: 20px;">';
+  html += '<h3 style="color: #2d3748; margin-bottom: 20px; text-align: center;">➕ Bias Vectors</h3>';
+  
+  for (let layerIdx = 0; layerIdx < biases.length; layerIdx++) {
+    const oldBiasVec = oldBiases[layerIdx];
+    const newBiasVec = biases[layerIdx];
+
+    html += `<div class="layer-section" style="margin-bottom: 30px;">`;
+    html += `<h4 style="text-align: center; margin-bottom: 15px;">Layer ${layerIdx + 2}</h4>`;
+    html += `<div style="display: flex; gap: 20px; align-items: flex-start; justify-content: center; flex-wrap: wrap;">`;
+
+    // Old biases
+    html += '<div class="matrix-section">';
+    html += `<div class="matrix-label">Before update (b<sub>old</sub>)</div>`;
+    html += '<div class="bias-vector">';
+    for (let i = 0; i < oldBiasVec.length; i++) {
+      const oldB = oldBiasVec[i];
+      html += `<div class="bias-cell" style="background: #f7fafc; font-size: 12px;">
+        b<sub>${i}</sub> = ${oldB.toFixed(3)}
+      </div>`;
+    }
+    html += '</div></div>';
+
+    // New biases with color coding
+    html += '<div class="matrix-section">';
+    html += `<div class="matrix-label">After update (b<sub>new</sub>)</div>`;
+    html += '<div class="bias-vector">';
+    for (let i = 0; i < newBiasVec.length; i++) {
+      const oldB = oldBiasVec[i];
+      const newB = newBiasVec[i];
+      const deltaB = newB - oldB;
+      
+      let bgColorB = '#ffffff'; // white for no change
+      if (Math.abs(deltaB) > 0.0001) {
+        if (deltaB > 0) {
+          bgColorB = '#c6f6d5'; // green for increase
+        } else {
+          bgColorB = '#fed7d7'; // red for decrease
+        }
+      }
+      
+      html += `<div class="bias-cell" style="background: ${bgColorB}; font-size: 12px;">
+        b<sub>${i}</sub> = ${newB.toFixed(3)}
+      </div>`;
+    }
+    html += '</div></div>';
+
+    html += '</div></div>'; // end flex and layer-section
+  }
+  html += '</div>'; // end biases section
+
+  html += '</div>'; // end main container
+
+  return html;
+}
+
 function displayCalculation() {
   const container = document.getElementById('calculationContent');
+  const networkPanel = document.getElementById('networkPanel');
+  const calculationPanel = document.getElementById('calculationPanel');
+  const mainGrid = document.getElementById('mainGrid');
 
   if (phase === 'feedforward') {
+    // Show both panels in grid
+    if (networkPanel) networkPanel.style.display = 'block';
+    if (mainGrid) mainGrid.style.display = 'grid';
     displayFeedforwardCalc(container);
   } else if (phase === 'backprop') {
+    // Show both panels in grid
+    if (networkPanel) networkPanel.style.display = 'block';
+    if (mainGrid) mainGrid.style.display = 'grid';
     displayBackpropCalc(container);
   } else if (phase === 'update') {
+    // Show both panels in grid
+    if (networkPanel) networkPanel.style.display = 'block';
+    if (mainGrid) mainGrid.style.display = 'grid';
     displayUpdateCalc(container);
   } else if (phase === 'complete') {
+    // Hide network panel and make calculation panel full width
+    if (networkPanel) networkPanel.style.display = 'none';
+    if (mainGrid) mainGrid.style.display = 'block';
+    if (calculationPanel) calculationPanel.style.maxWidth = '100%';
+    
     container.innerHTML = `
-      <div style="text-align: center; padding: 50px; color: #48bb78;">
+      <div style="text-align: center; padding: 40px 30px 20px; color: #48bb78;">
         <h2 style="font-size: 2em; margin-bottom: 15px;">🎉 Training Complete!</h2>
         <p style="color: #718096; font-size: 1.1em;">
           The network has completed one full training cycle:<br>
@@ -607,6 +759,9 @@ function displayCalculation() {
           <p style="color: #2d3748; margin: 5px 0;"><strong>🎯 Target:</strong> [${currentTarget.join(', ')}]</p>
           <p style="color: #2d3748; margin: 5px 0;"><strong>📤 Output:</strong> [${layerValues[SIZES.length - 1].map(v => v.toFixed(3)).join(', ')}]</p>
         </div>
+      </div>
+      <div style="margin-top: 10px;">
+        ${renderUpdateComparison()}
       </div>
     `;
   }
@@ -989,6 +1144,10 @@ function displayUpdateCalc(container) {
       </div>
     </div>
   `;
+
+  // Append full before/after matrices & biases comparison
+  html += renderUpdateComparison();
+
   container.innerHTML = html;
 }
 

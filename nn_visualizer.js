@@ -282,8 +282,9 @@ function updateProgress() {
 
   const percentage = Math.floor((completedSteps / totalSteps) * 100);
   const progressBar = document.getElementById('progress');
+  const progressText = document.getElementById('progressText');
   progressBar.style.width = percentage + '%';
-  progressBar.textContent = percentage + '%';
+  progressText.textContent = percentage + '%';
 }
 
 function drawNetwork() {

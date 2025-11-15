@@ -16,22 +16,23 @@
       </header>
 
       <div class="control-panel">
-        <div class="controls">
-          <button class="btn-success" onclick="resetNetwork()">🔄 Reset Network</button>
-          <button class="btn-primary" onclick="nextStep()">▶️ Next Step</button>
-          <button class="btn-info" onclick="autoPlay()">⏩ Auto Play</button>
-          <button class="btn-danger" onclick="stopAuto()">⏸ Stop</button>
-          <button class="btn-warning" onclick="skipToBackprop()">⚡ Skip to Backprop</button>
-        </div>
-
         <div class="status-bar" id="status">
           Click "Reset Network" to begin!
         </div>
 
         <div class="progress-container">
           <div class="progress-bar">
-            <div class="progress-fill" id="progress" style="width: 0%;">0%</div>
+            <div class="progress-fill" id="progress" style="width: 0%;"></div>
           </div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
+
+        <div class="controls">
+          <button class="btn-success" onclick="resetNetwork()">🔄 Reset Network</button>
+          <button class="btn-primary" onclick="nextStep()">▶️ Next Step</button>
+          <button class="btn-info" onclick="autoPlay()">⏩ Auto Play</button>
+          <button class="btn-danger" onclick="stopAuto()">⏸ Stop</button>
+          <button class="btn-warning" onclick="skipToBackprop()">⚡ Skip to Backprop</button>
         </div>
       </div>
 

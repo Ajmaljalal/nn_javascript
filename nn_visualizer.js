@@ -23,6 +23,12 @@ let currentNeuron = 0;
 let currentSubStep = 'idle';
 let tempWeightedSum = 0;
 let tempWithBias = 0;
+let tempOutputError = 0;
+let tempSigmoidDeriv = 0;
+let tempError = 0;
+let tempErrorSum = 0;
+let tempErrorContributions = [];
+let currentWeightIdx = 0;
 let autoPlayInterval = null;
 
 function initNetwork() {
@@ -81,7 +87,7 @@ function stepFeedforward() {
     phase = 'backprop';
     currentLayer = SIZES.length - 1;
     currentNeuron = 0;
-    currentSubStep = 'calc_error';
+    currentSubStep = 'start_error';
     updateStatus('✅ Feedforward complete! Starting backpropagation...');
     drawNetwork();
     displayLayerValues();
@@ -126,57 +132,116 @@ function stepFeedforward() {
 }
 
 function stepBackprop() {
-  if (currentSubStep === 'calc_error') {
-    // Calculate output layer errors
-    errors[currentLayer - 1] = [];
-    biasGradients[currentLayer - 1] = [];
+  if (currentSubStep === 'start_error') {
+    // Initialize for first neuron error calculation
+    currentNeuron = 0;
+    currentSubStep = 'calc_error_neuron';
 
-    for (let i = 0; i < SIZES[currentLayer]; i++) {
-      const error = (layerValues[currentLayer][i] - currentTarget[i]) *
-        sigmoidDerivative(weightedSums[currentLayer - 1][i]);
-      errors[currentLayer - 1].push(error);
-      biasGradients[currentLayer - 1].push(error);
+    if (!errors[currentLayer - 1]) {
+      errors[currentLayer - 1] = [];
+      biasGradients[currentLayer - 1] = [];
     }
 
-    currentSubStep = 'calc_weight_grad';
+  } else if (currentSubStep === 'calc_error_neuron') {
+    // Calculate error for one output neuron
+    const output = layerValues[currentLayer][currentNeuron];
+    const target = currentTarget[currentNeuron];
+    const z = weightedSums[currentLayer - 1][currentNeuron];
+    const sigmoidDeriv = sigmoidDerivative(z);
+    const error = (output - target) * sigmoidDeriv;
 
-  } else if (currentSubStep === 'calc_weight_grad') {
-    // Calculate weight gradients for current layer
+    errors[currentLayer - 1][currentNeuron] = error;
+    biasGradients[currentLayer - 1][currentNeuron] = error;
+
+    // Store for display
+    tempOutputError = output - target;
+    tempSigmoidDeriv = sigmoidDeriv;
+    tempError = error;
+
+    currentNeuron++;
+
+    if (currentNeuron >= SIZES[currentLayer]) {
+      currentNeuron = 0;
+      currentWeightIdx = 0;
+      currentSubStep = 'calc_weight_grad_setup';
+    }
+
+  } else if (currentSubStep === 'calc_weight_grad_setup') {
+    // Setup for weight gradient calculation
     const layerIdx = currentLayer - 1;
-    weightGradients[layerIdx] = [];
+    if (!weightGradients[layerIdx]) {
+      weightGradients[layerIdx] = [];
+    }
+    currentSubStep = 'calc_weight_grad_neuron';
 
-    for (let i = 0; i < SIZES[currentLayer]; i++) {
-      weightGradients[layerIdx].push(
-        layerValues[currentLayer - 1].map(a => errors[layerIdx][i] * a)
-      );
+  } else if (currentSubStep === 'calc_weight_grad_neuron') {
+    // Calculate weight gradients for one neuron in current layer
+    const layerIdx = currentLayer - 1;
+    const error = errors[layerIdx][currentNeuron];
+
+    if (!weightGradients[layerIdx][currentNeuron]) {
+      weightGradients[layerIdx][currentNeuron] = [];
     }
 
-    currentLayer--;
-
-    if (currentLayer === 0) {
-      phase = 'update';
-      updateStatus('✅ Backpropagation complete! Ready to update weights.');
-    } else {
-      currentSubStep = 'propagate_error';
+    // Calculate gradient for each weight connected to this neuron
+    for (let i = 0; i < SIZES[currentLayer - 1]; i++) {
+      const activation = layerValues[currentLayer - 1][i];
+      weightGradients[layerIdx][currentNeuron][i] = error * activation;
     }
 
-  } else if (currentSubStep === 'propagate_error') {
-    // Propagate errors to previous layer
-    const nextLayerIdx = currentLayer;
-    errors[currentLayer - 1] = [];
-    biasGradients[currentLayer - 1] = [];
+    currentNeuron++;
 
-    for (let i = 0; i < SIZES[currentLayer]; i++) {
-      let error = 0;
-      for (let j = 0; j < SIZES[currentLayer + 1]; j++) {
-        error += weights[currentLayer][j][i] * errors[nextLayerIdx][j];
+    if (currentNeuron >= SIZES[currentLayer]) {
+      // Done with this layer's weight gradients
+      currentLayer--;
+
+      if (currentLayer === 0) {
+        phase = 'update';
+        updateStatus('✅ Backpropagation complete! Ready to update weights.');
+      } else {
+        currentNeuron = 0;
+        currentSubStep = 'propagate_error_neuron';
       }
-      error *= sigmoidDerivative(weightedSums[currentLayer - 1][i]);
-      errors[currentLayer - 1].push(error);
-      biasGradients[currentLayer - 1].push(error);
     }
 
-    currentSubStep = 'calc_weight_grad';
+  } else if (currentSubStep === 'propagate_error_neuron') {
+    // Propagate error to one neuron in previous layer
+    const nextLayerIdx = currentLayer;
+
+    if (!errors[currentLayer - 1]) {
+      errors[currentLayer - 1] = [];
+      biasGradients[currentLayer - 1] = [];
+    }
+
+    let errorSum = 0;
+    tempErrorContributions = [];
+
+    // Sum up weighted errors from next layer
+    for (let j = 0; j < SIZES[currentLayer + 1]; j++) {
+      const weight = weights[currentLayer][j][currentNeuron];
+      const nextError = errors[nextLayerIdx][j];
+      const contribution = weight * nextError;
+      errorSum += contribution;
+      tempErrorContributions.push({ weight, nextError, contribution });
+    }
+
+    const z = weightedSums[currentLayer - 1][currentNeuron];
+    const sigmoidDeriv = sigmoidDerivative(z);
+    const finalError = errorSum * sigmoidDeriv;
+
+    errors[currentLayer - 1][currentNeuron] = finalError;
+    biasGradients[currentLayer - 1][currentNeuron] = finalError;
+
+    tempErrorSum = errorSum;
+    tempSigmoidDeriv = sigmoidDeriv;
+    tempError = finalError;
+
+    currentNeuron++;
+
+    if (currentNeuron >= SIZES[currentLayer]) {
+      currentNeuron = 0;
+      currentSubStep = 'calc_weight_grad_setup';
+    }
   }
 
   drawNetwork();
@@ -572,75 +637,266 @@ function displayFeedforwardCalc(container) {
 }
 
 function displayBackpropCalc(container) {
-  if (currentSubStep === 'calc_error') {
+  if (currentSubStep === 'start_error') {
+    container.innerHTML = `
+      <div class="calculation-box">
+        <strong style="color: #e53e3e;">🔙 Starting Backpropagation</strong>
+        <p style="margin: 15px 0; font-size: 16px;">
+          We'll now work backwards through the network to calculate how much each weight and bias contributed to the error.
+        </p>
+        <div style="padding: 12px; background: linear-gradient(135deg, #fef5e7 0%, #fdebd0 100%); border-radius: 8px; color: #7d6608; margin-top: 15px;">
+          📚 <strong>What is backpropagation?</strong><br>
+          It's the process of calculating gradients (how much to adjust each weight/bias) by propagating the error backward through the network.
+        </div>
+        <p style="margin-top: 15px; color: #718096;">Click "Next Step" to calculate error for the first output neuron.</p>
+      </div>
+    `;
+
+  } else if (currentSubStep === 'calc_error_neuron') {
+    const neuronIdx = currentNeuron - 1; // Already incremented
+    const output = layerValues[currentLayer][neuronIdx];
+    const target = currentTarget[neuronIdx];
+    const z = weightedSums[currentLayer - 1][neuronIdx];
+
     let html = `
       <div class="calculation-box">
-        <strong style="color: #e53e3e;">◀️ BACKPROP STEP 1: Calculate Output Error</strong>
-        <div class="formula">
-          δ = (output - target) × σ'(z)
+        <strong style="color: #e53e3e;">◀️ STEP 1: Calculate Error for Output Neuron ${neuronIdx}</strong>
+        <div style="margin: 20px 0; padding: 15px; background: #fef5e7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+          <strong style="color: #92400e;">📖 What we're doing:</strong><br>
+          We compare what the neuron predicted (output) with what it should have predicted (target), then multiply by the sigmoid derivative to get the error signal.
         </div>
-        <p style="margin: 15px 0;">Computing error for <span class="step-highlight">Output Layer</span>:</p>
+        
+        <div class="formula" style="margin: 20px 0;">
+          error = (output - target) × σ'(z)
+        </div>
+        
+        <div style="margin: 20px 0;">
+          <div style="padding: 12px; background: #f0f9ff; border-radius: 8px; margin: 10px 0;">
+            <strong>Step 1a: Calculate output difference</strong><br>
+            <span style="font-size: 16px; margin-left: 20px;">
+              ${output.toFixed(4)} - ${target.toFixed(4)} = <strong style="color: #dc2626;">${tempOutputError.toFixed(4)}</strong>
+            </span><br>
+            <span style="font-size: 14px; color: #64748b; margin-left: 20px;">
+              (This tells us if we predicted too high or too low)
+            </span>
+          </div>
+          
+          <div style="padding: 12px; background: #f0f9ff; border-radius: 8px; margin: 10px 0;">
+            <strong>Step 1b: Calculate sigmoid derivative σ'(z)</strong><br>
+            <span style="font-size: 16px; margin-left: 20px;">
+              σ'(${z.toFixed(4)}) = <strong style="color: #2563eb;">${tempSigmoidDeriv.toFixed(4)}</strong>
+            </span><br>
+            <span style="font-size: 14px; color: #64748b; margin-left: 20px;">
+              (This tells us how sensitive the neuron is to changes)
+            </span>
+          </div>
+          
+          <div style="padding: 12px; background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%); border-radius: 8px; margin: 10px 0;">
+            <strong>Step 1c: Multiply them together</strong><br>
+            <span style="font-size: 16px; margin-left: 20px;">
+              ${tempOutputError.toFixed(4)} × ${tempSigmoidDeriv.toFixed(4)} = <strong style="color: #991b1b; font-size: 18px;">${tempError.toFixed(4)}</strong>
+            </span><br>
+            <span style="font-size: 14px; color: #7f1d1d; margin-left: 20px;">
+              ✅ This is the error signal for Neuron ${neuronIdx}!
+            </span>
+          </div>
+        </div>
+        
+        <div style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 8px; color: #78350f;">
+          💡 <strong>Simple explanation:</strong> This error value tells us how "wrong" this neuron was and will be used to adjust all weights connected to it.
+        </div>
+      </div>
     `;
-
-    for (let i = 0; i < SIZES[currentLayer]; i++) {
-      const output = layerValues[currentLayer][i];
-      const target = currentTarget[i];
-      const error = errors[currentLayer - 1] ? errors[currentLayer - 1][i] : 0;
-      html += `<div style="margin: 10px 0; padding-left: 15px; font-size: 15px;">
-        Neuron ${i}: (${output.toFixed(3)} - ${target.toFixed(3)}) × σ'(z) = <strong style="color: #e53e3e;">${error.toFixed(4)}</strong>
-      </div>`;
-    }
-
-    html += `</div>`;
     container.innerHTML = html;
 
-  } else if (currentSubStep === 'calc_weight_grad') {
+  } else if (currentSubStep === 'calc_weight_grad_setup') {
     container.innerHTML = `
       <div class="calculation-box">
-        <strong style="color: #e53e3e;">◀️ BACKPROP STEP 2: Calculate Weight Gradients</strong>
-        <div class="formula">
-          ∂W = δ × activation<sub>prev</sub>
+        <strong style="color: #e53e3e;">◀️ Ready to Calculate Weight Gradients</strong>
+        <p style="margin: 15px 0; font-size: 16px;">
+          Now that we know the error for each neuron in Layer ${currentLayer + 1}, we can calculate how much each weight contributed to that error.
+        </p>
+        <div style="padding: 12px; background: linear-gradient(135deg, #fef5e7 0%, #fdebd0 100%); border-radius: 8px; color: #7d6608;">
+          📚 <strong>Weight Gradient Formula:</strong><br>
+          gradient = error × input_from_previous_layer<br><br>
+          This tells us how much to adjust each weight to reduce the error.
         </div>
-        <p style="margin: 15px 0;">Computing gradients for weights connecting to Layer ${currentLayer + 1}.</p>
-        <div style="padding: 12px; background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%); border-radius: 8px; color: #742a2a;">
-          ✅ Gradients calculated for all weights in this layer!
-        </div>
+        <p style="margin-top: 15px; color: #718096;">Click "Next Step" to calculate gradients for the first neuron.</p>
       </div>
     `;
 
-  } else if (currentSubStep === 'propagate_error') {
-    container.innerHTML = `
+  } else if (currentSubStep === 'calc_weight_grad_neuron') {
+    const neuronIdx = currentNeuron - 1; // Already incremented
+    const layerIdx = currentLayer - 1;
+    const error = errors[layerIdx][neuronIdx];
+
+    let html = `
       <div class="calculation-box">
-        <strong style="color: #e53e3e;">◀️ BACKPROP STEP 3: Propagate Error Backward</strong>
-        <div class="formula">
-          δ<sub>l</sub> = (W<sup>T</sup> × δ<sub>l+1</sub>) ⊙ σ'(z)
+        <strong style="color: #e53e3e;">◀️ STEP 2: Calculate Weight Gradients for Neuron ${neuronIdx}</strong>
+        
+        <div style="margin: 20px 0; padding: 15px; background: #fef5e7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+          <strong style="color: #92400e;">📖 What we're doing:</strong><br>
+          For each weight connecting to this neuron, multiply the neuron's error by the input value from the previous layer.
         </div>
-        <p style="margin: 15px 0;">Propagating error from Layer ${currentLayer + 2} to Layer ${currentLayer + 1}.</p>
-        <div style="padding: 12px; background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%); border-radius: 8px; color: #742a2a;">
-          Errors distributed based on weight contributions.
+        
+        <div class="formula" style="margin: 20px 0;">
+          gradient<sub>weight</sub> = error × activation<sub>previous</sub>
+        </div>
+        
+        <div style="margin: 20px 0;">
+          <div style="padding: 12px; background: #ede9fe; border-radius: 8px; margin-bottom: 15px;">
+            <strong>Error for this neuron:</strong> <span style="color: #dc2626; font-size: 16px;">${error.toFixed(4)}</span>
+          </div>
+          
+          <strong>Calculating gradient for each weight:</strong>
+    `;
+
+    for (let i = 0; i < SIZES[currentLayer - 1]; i++) {
+      const activation = layerValues[currentLayer - 1][i];
+      const gradient = weightGradients[layerIdx][neuronIdx][i];
+      html += `
+        <div style="padding: 10px; background: #f0f9ff; border-radius: 8px; margin: 8px 0; border-left: 3px solid #3b82f6;">
+          <strong>Weight from Neuron ${i} (previous layer):</strong><br>
+          <span style="margin-left: 20px; font-size: 15px;">
+            ${error.toFixed(4)} × ${activation.toFixed(4)} = <strong style="color: #1e40af;">${gradient.toFixed(4)}</strong>
+          </span><br>
+          <span style="font-size: 13px; color: #64748b; margin-left: 20px;">
+            (error × input = gradient)
+          </span>
+        </div>
+      `;
+    }
+
+    html += `
+        </div>
+        
+        <div style="margin-top: 15px; padding: 12px; background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%); border-radius: 8px; color: #7f1d1d;">
+          ✅ All weight gradients calculated for Neuron ${neuronIdx}! These tell us how much to adjust each weight.
         </div>
       </div>
     `;
+    container.innerHTML = html;
+
+  } else if (currentSubStep === 'propagate_error_neuron') {
+    const neuronIdx = currentNeuron - 1; // Already incremented
+
+    let html = `
+      <div class="calculation-box">
+        <strong style="color: #e53e3e;">◀️ STEP 3: Propagate Error to Layer ${currentLayer + 1}, Neuron ${neuronIdx}</strong>
+        
+        <div style="margin: 20px 0; padding: 15px; background: #fef5e7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+          <strong style="color: #92400e;">📖 What we're doing:</strong><br>
+          Calculate how much error this neuron contributed to the next layer's errors. We look at all weights going forward and their errors.
+        </div>
+        
+        <div class="formula" style="margin: 20px 0;">
+          error = Σ(weight × next_error) × σ'(z)
+        </div>
+        
+        <div style="margin: 20px 0;">
+          <strong>Step 3a: Sum up weighted errors from next layer</strong>
+    `;
+
+    for (let j = 0; j < tempErrorContributions.length; j++) {
+      const contrib = tempErrorContributions[j];
+      html += `
+        <div style="padding: 10px; background: #f0f9ff; border-radius: 8px; margin: 8px 0;">
+          <strong>From next layer Neuron ${j}:</strong><br>
+          <span style="margin-left: 20px; font-size: 15px;">
+            weight: ${contrib.weight.toFixed(4)} × error: ${contrib.nextError.toFixed(4)} = <strong>${contrib.contribution.toFixed(4)}</strong>
+          </span>
+        </div>
+      `;
+    }
+
+    html += `
+          <div style="padding: 12px; background: #dbeafe; border-radius: 8px; margin: 10px 0;">
+            <strong>Sum of contributions:</strong> <span style="color: #1e40af; font-size: 16px;">${tempErrorSum.toFixed(4)}</span>
+          </div>
+        </div>
+        
+        <div style="margin: 20px 0;">
+          <strong>Step 3b: Multiply by sigmoid derivative</strong>
+          <div style="padding: 12px; background: #f0f9ff; border-radius: 8px; margin: 10px 0;">
+            ${tempErrorSum.toFixed(4)} × σ'(z)[${tempSigmoidDeriv.toFixed(4)}] = <strong style="color: #dc2626; font-size: 18px;">${tempError.toFixed(4)}</strong>
+          </div>
+        </div>
+        
+        <div style="margin-top: 15px; padding: 12px; background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%); border-radius: 8px; color: #7f1d1d;">
+          ✅ Error calculated for Neuron ${neuronIdx} in Layer ${currentLayer + 1}!
+        </div>
+        
+        <div style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 8px; color: #78350f;">
+          💡 <strong>Simple explanation:</strong> This neuron's error is the weighted sum of all errors it contributed to in the next layer.
+        </div>
+      </div>
+    `;
+    container.innerHTML = html;
   }
 }
 
 function displayUpdateCalc(container) {
-  container.innerHTML = `
+  let html = `
     <div class="calculation-box">
-      <strong style="color: #38a169;">💾 UPDATE STEP: Adjust Weights & Biases</strong>
-      <div class="formula">
-        W<sub>new</sub> = W<sub>old</sub> - learning_rate × ∂W<br>
-        b<sub>new</sub> = b<sub>old</sub> - learning_rate × ∂b
+      <strong style="color: #38a169;">💾 FINAL STEP: Update All Weights & Biases</strong>
+      
+      <div style="margin: 20px 0; padding: 15px; background: #ecfdf5; border-radius: 8px; border-left: 4px solid #10b981;">
+        <strong style="color: #065f46;">📖 What we're doing:</strong><br>
+        Now we use all the gradients we calculated to update each weight and bias. This is how the network learns!
       </div>
-      <p style="margin: 15px 0;">Updating all weights and biases using:</p>
-      <div style="padding-left: 15px; font-size: 16px;">
-        <p><strong>Learning Rate:</strong> ${LEARNING_RATE}</p>
+      
+      <div class="formula" style="margin: 20px 0;">
+        new_weight = old_weight - (learning_rate × gradient)<br>
+        new_bias = old_bias - (learning_rate × gradient)
       </div>
+      
+      <div style="padding: 12px; background: #dbeafe; border-radius: 8px; margin: 15px 0;">
+        <strong>Learning Rate:</strong> <span style="color: #1e40af; font-size: 16px;">${LEARNING_RATE}</span><br>
+        <span style="font-size: 14px; color: #64748b;">
+          (Controls how big of a step we take when adjusting weights)
+        </span>
+      </div>
+      
+      <div style="margin: 20px 0;">
+        <strong>Example weight updates from Layer 1 → Layer 2:</strong>
+  `;
+
+  // Show a few example weight updates
+  if (weightGradients[0] && weightGradients[0][0]) {
+    for (let i = 0; i < Math.min(3, weightGradients[0][0].length); i++) {
+      const oldWeight = weights[0][0][i] + (LEARNING_RATE * weightGradients[0][0][i]); // Reverse the update to show old value
+      const gradient = weightGradients[0][0][i];
+      const newWeight = weights[0][0][i];
+
+      html += `
+        <div style="padding: 10px; background: #f0fdf4; border-radius: 8px; margin: 8px 0; border-left: 3px solid #22c55e;">
+          <strong>Weight[0][0][${i}]:</strong><br>
+          <span style="margin-left: 20px; font-size: 15px;">
+            ${oldWeight.toFixed(4)} - (${LEARNING_RATE} × ${gradient.toFixed(4)}) = <strong style="color: #15803d;">${newWeight.toFixed(4)}</strong>
+          </span>
+        </div>
+      `;
+    }
+  }
+
+  html += `
+      </div>
+      
       <div style="margin-top: 18px; padding: 12px; background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%); border-radius: 8px; color: #22543d;">
-        Ready to update! Click "Next Step" to apply changes.
+        ✅ All ${weights.reduce((sum, layer) => sum + layer.reduce((s, neuron) => s + neuron.length, 0), 0)} weights and ${biases.reduce((sum, layer) => sum + layer.length, 0)} biases updated!
+      </div>
+      
+      <div style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 8px; color: #78350f;">
+        💡 <strong>Simple explanation:</strong> The network just learned from this example! Each weight was adjusted slightly in the direction that reduces the error.
+      </div>
+      
+      <div style="margin-top: 15px; padding: 12px; background: #ede9fe; border-radius: 8px; color: #5b21b6;">
+        🎓 <strong>What happens next?</strong><br>
+        In real training, we'd repeat this process thousands of times with different examples, and the network gradually gets better at its task!
       </div>
     </div>
   `;
+  container.innerHTML = html;
 }
 
 // Layer values display removed - section no longer in UI

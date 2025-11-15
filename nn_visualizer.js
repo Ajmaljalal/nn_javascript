@@ -150,17 +150,17 @@ function stepBackprop() {
     const target = currentTarget[currentNeuron];
     const z = weightedSums[currentLayer - 1][currentNeuron];
     const sigmoidDeriv = sigmoidDerivative(z);
-    
+
     // Calculate cost and its derivative
     const costValue = calculateLoss(output, target);
     const costDerivative = output - target; // dC/dOutput = d/dOutput[0.5*(output-target)²] = (output-target)
-    
+
     // Error signal (gradient) = dC/dz = dC/dOutput * dOutput/dz = costDerivative * sigmoid'(z)
     const error = costDerivative * sigmoidDeriv;
-    
+
     errors[currentLayer - 1][currentNeuron] = error;
     biasGradients[currentLayer - 1][currentNeuron] = error;
-    
+
     // Store for display
     tempCostValue = costValue;
     tempCostDerivative = costDerivative;
@@ -383,13 +383,37 @@ function drawNetwork() {
         let isActive = false;
         let isBackprop = false;
 
-        if (phase === 'feedforward' && l === currentLayer && j === currentNeuron &&
-          (currentSubStep === 'weighted_sum' || currentSubStep === 'add_bias')) {
+        // Feedforward highlighting: current neuron collecting its weighted inputs
+        if (
+          phase === 'feedforward' &&
+          l === currentLayer &&
+          j === currentNeuron &&
+          (currentSubStep === 'weighted_sum' || currentSubStep === 'add_bias')
+        ) {
           isActive = true;
         }
 
-        if (phase === 'backprop' && l === currentLayer - 1 && errors[l]) {
-          isBackprop = true;
+        // Backprop highlighting:
+        // - During weight-gradient calc, show all incoming connections to the neuron whose dC/dw we are computing.
+        // - During error propagation to previous layer, show all outgoing connections from the neuron whose error we are computing.
+        if (phase === 'backprop') {
+          // We are computing gradients for weights in layer (currentLayer - 1)
+          if (
+            currentSubStep === 'calc_weight_grad_neuron' &&
+            l === currentLayer - 1 &&
+            j === currentNeuron
+          ) {
+            isBackprop = true;
+          }
+
+          // We are propagating error from next layer back to the current layer
+          if (
+            currentSubStep === 'propagate_error_neuron' &&
+            l === currentLayer &&
+            i === currentNeuron
+          ) {
+            isBackprop = true;
+          }
         }
 
         const color = isActive ? 'rgba(237, 137, 54, 0.9)' :
@@ -484,10 +508,12 @@ function drawNetwork() {
 }
 
 function renderWeightMatrix() {
-  if (phase === 'complete' || currentLayer >= SIZES.length - 1) return '';
-
+  // Determine which weight layer we are focusing on:
+  // - During feedforward we use the currentLayer (from layer → layer+1)
+  // - During backprop we focus on the layer whose gradients / errors we are computing
   const layerIdx = phase === 'backprop' ? currentLayer - 1 : currentLayer;
-  if (layerIdx < 0 || layerIdx >= weights.length) return '';
+
+  if (phase === 'complete' || layerIdx < 0 || layerIdx >= weights.length) return '';
 
   const matrix = weights[layerIdx];
   const biasVec = biases[layerIdx];
@@ -502,8 +528,23 @@ function renderWeightMatrix() {
   for (let row = 0; row < matrix.length; row++) {
     html += '<div class="matrix-row">';
     for (let col = 0; col < matrix[row].length; col++) {
-      const isHighlight = (phase === 'feedforward' && row === currentNeuron &&
-        (currentSubStep === 'weighted_sum' || currentSubStep === 'add_bias'));
+      // Highlight logic:
+      // - Feedforward: highlight the row for the neuron we are currently activating.
+      // - Backprop (weight gradients): highlight the row for the neuron whose dC/dw we are computing.
+      const isFeedforwardHighlight =
+        phase === 'feedforward' &&
+        layerIdx === currentLayer &&
+        row === currentNeuron &&
+        (currentSubStep === 'weighted_sum' || currentSubStep === 'add_bias');
+
+      const isBackpropWeightHighlight =
+        phase === 'backprop' &&
+        layerIdx === currentLayer - 1 &&
+        currentSubStep === 'calc_weight_grad_neuron' &&
+        row === currentNeuron;
+
+      const isHighlight = isFeedforwardHighlight || isBackpropWeightHighlight;
+
       const val = matrix[row][col];
       const intensity = Math.min(Math.abs(val), 1);
       const bgColor = val > 0
@@ -667,7 +708,7 @@ function displayBackpropCalc(container) {
     const output = layerValues[currentLayer][neuronIdx];
     const target = currentTarget[neuronIdx];
     const z = weightedSums[currentLayer - 1][neuronIdx];
-    
+
     let html = `
       <div class="calculation-box">
         <strong style="color: #e53e3e;">◀️ STEP 1: Calculate Gradient (Error) for Output Neuron ${neuronIdx}</strong>
@@ -766,7 +807,7 @@ function displayBackpropCalc(container) {
     const neuronIdx = currentNeuron - 1; // Already incremented
     const layerIdx = currentLayer - 1;
     const neuronGradient = errors[layerIdx][neuronIdx];
-    
+
     let html = `
       <div class="calculation-box">
         <strong style="color: #e53e3e;">◀️ STEP 2: Calculate dC/dw for All Weights to Neuron ${neuronIdx}</strong>
@@ -787,7 +828,7 @@ function displayBackpropCalc(container) {
           
           <strong>Calculating dC/dw for each weight:</strong>
     `;
-    
+
     for (let i = 0; i < SIZES[currentLayer - 1]; i++) {
       const activation = layerValues[currentLayer - 1][i];
       const weightGradient = weightGradients[layerIdx][neuronIdx][i];
@@ -803,7 +844,7 @@ function displayBackpropCalc(container) {
         </div>
       `;
     }
-    
+
     html += `
         </div>
         
@@ -905,7 +946,7 @@ function displayUpdateCalc(container) {
       <div style="margin: 20px 0;">
         <strong>Example weight updates from Layer 1 → Layer 2:</strong>
   `;
-  
+
   // Show a few example weight updates
   if (weightGradients[0] && weightGradients[0][0]) {
     for (let i = 0; i < Math.min(3, weightGradients[0][0].length); i++) {
@@ -913,7 +954,7 @@ function displayUpdateCalc(container) {
       const gradient = weightGradients[0][0][i];
       const newWeight = weights[0][0][i];
       const change = LEARNING_RATE * gradient;
-      
+
       html += `
         <div style="padding: 10px; background: #f0fdf4; border-radius: 8px; margin: 8px 0; border-left: 3px solid #22c55e;">
           <strong>Weight[0][0][${i}]:</strong><br>
@@ -930,7 +971,7 @@ function displayUpdateCalc(container) {
       `;
     }
   }
-  
+
   html += `
       </div>
       

@@ -137,6 +137,8 @@ function stepFeedforward() {
 }
 
 function stepBackprop() {
+  let deferredTransition = null;
+
   if (currentSubStep === 'start_error') {
     // Initialize for first neuron error calculation
     currentNeuron = 0;
@@ -174,9 +176,11 @@ function stepBackprop() {
     currentNeuron++;
 
     if (currentNeuron >= SIZES[currentLayer]) {
-      currentNeuron = 0;
-      currentWeightIdx = 0;
-      currentSubStep = 'calc_weight_grad_setup';
+      deferredTransition = () => {
+        currentNeuron = 0;
+        currentWeightIdx = 0;
+        currentSubStep = 'calc_weight_grad_setup';
+      };
     }
 
   } else if (currentSubStep === 'calc_weight_grad_setup') {
@@ -206,15 +210,18 @@ function stepBackprop() {
 
     if (currentNeuron >= SIZES[currentLayer]) {
       // Done with this layer's weight gradients
-      currentLayer--;
+      const nextLayer = currentLayer - 1;
+      deferredTransition = () => {
+        currentLayer = nextLayer;
 
-      if (currentLayer === 0) {
-        phase = 'update';
-        updateStatus('✅ Backpropagation complete! Ready to update weights.');
-      } else {
-        currentNeuron = 0;
-        currentSubStep = 'propagate_error_neuron';
-      }
+        if (currentLayer === 0) {
+          phase = 'update';
+          updateStatus('✅ Backpropagation complete! Ready to update weights.');
+        } else {
+          currentNeuron = 0;
+          currentSubStep = 'propagate_error_neuron';
+        }
+      };
     }
 
   } else if (currentSubStep === 'propagate_error_neuron') {
@@ -252,14 +259,20 @@ function stepBackprop() {
     currentNeuron++;
 
     if (currentNeuron >= SIZES[currentLayer]) {
-      currentNeuron = 0;
-      currentSubStep = 'calc_weight_grad_setup';
+      deferredTransition = () => {
+        currentNeuron = 0;
+        currentSubStep = 'calc_weight_grad_setup';
+      };
     }
   }
 
   drawNetwork();
   displayLayerValues();
   displayCalculation();
+
+  if (deferredTransition) {
+    deferredTransition();
+  }
 }
 
 function stepUpdate() {
@@ -514,21 +527,46 @@ function drawNetwork() {
 }
 
 function renderWeightMatrix() {
-  // Determine which weight layer we are focusing on:
-  // - During feedforward we use the currentLayer (from layer → layer+1)
-  // - During backprop we focus on the layer whose gradients / errors we are computing
-  const layerIdx = phase === 'backprop' ? currentLayer - 1 : currentLayer;
+  if (phase === 'complete') return '';
 
-  if (phase === 'complete' || layerIdx < 0 || layerIdx >= weights.length) return '';
+  const determineWeightLayer = () => {
+    if (phase !== 'backprop') return currentLayer;
 
-  const matrix = weights[layerIdx];
-  const biasVec = biases[layerIdx];
+    if (currentSubStep === 'propagate_error_neuron') {
+      return currentLayer;
+    }
+
+    return currentLayer - 1;
+  };
+
+  const determineBiasLayer = () => {
+    if (phase !== 'backprop') return currentLayer;
+    return currentLayer - 1;
+  };
+
+  const weightLayerIdx = determineWeightLayer();
+  const biasLayerIdx = determineBiasLayer();
+
+  if (
+    weightLayerIdx === null ||
+    weightLayerIdx < 0 ||
+    weightLayerIdx >= weights.length
+  ) {
+    return '';
+  }
+
+  if (biasLayerIdx === null || biasLayerIdx < 0 || biasLayerIdx >= biases.length) {
+    return '';
+  }
+
+  const matrix = weights[weightLayerIdx];
+  const biasVec = biases[biasLayerIdx];
 
   let html = '<div class="matrices-display">';
 
   // Weight matrix
   html += '<div class="matrix-section">';
-  html += `<div class="matrix-label">⚖️ Weight Matrix [Layer ${layerIdx + 1} → ${layerIdx + 2}]</div>`;
+  html += `<div class="matrix-label">⚖️ Weight Matrix [Layer ${weightLayerIdx + 1} → ${weightLayerIdx + 2}]</div>`;
   html += '<div class="matrix-grid">';
 
   for (let row = 0; row < matrix.length; row++) {
@@ -539,18 +577,26 @@ function renderWeightMatrix() {
       // - Backprop (weight gradients): highlight the row for the neuron whose dC/dw we are computing.
       const isFeedforwardHighlight =
         phase === 'feedforward' &&
-        layerIdx === currentLayer &&
+        weightLayerIdx === currentLayer &&
         row === currentNeuron &&
         (currentSubStep === 'weighted_sum' || currentSubStep === 'add_bias');
 
       const isBackpropWeightHighlight =
         phase === 'backprop' &&
-        layerIdx === currentLayer - 1 &&
+        weightLayerIdx === currentLayer - 1 &&
         currentSubStep === 'calc_weight_grad_neuron' &&
         row === currentNeuron - 1 &&
         currentNeuron > 0;
 
-      const isHighlight = isFeedforwardHighlight || isBackpropWeightHighlight;
+      const isBackpropColumnHighlight =
+        phase === 'backprop' &&
+        weightLayerIdx === currentLayer &&
+        currentSubStep === 'propagate_error_neuron' &&
+        col === currentNeuron - 1 &&
+        currentNeuron > 0;
+
+      const isHighlight =
+        isFeedforwardHighlight || isBackpropWeightHighlight || isBackpropColumnHighlight;
 
       const val = matrix[row][col];
       const intensity = Math.min(Math.abs(val), 1);
@@ -569,7 +615,7 @@ function renderWeightMatrix() {
 
   // Bias vector
   html += '<div class="matrix-section">';
-  html += `<div class="matrix-label">➕ Bias Vector [Layer ${layerIdx + 2}]</div>`;
+  html += `<div class="matrix-label">➕ Bias Vector [Layer ${biasLayerIdx + 2}]</div>`;
   html += '<div class="bias-vector">';
 
   for (let i = 0; i < biasVec.length; i++) {
@@ -577,10 +623,12 @@ function renderWeightMatrix() {
       (currentSubStep === 'add_bias' || currentSubStep === 'sigmoid');
 
     const isBackpropHighlight = phase === 'backprop' &&
-      layerIdx === currentLayer - 1 &&
+      biasLayerIdx === currentLayer - 1 &&
       i === currentNeuron - 1 &&
       currentNeuron > 0 &&
-      (currentSubStep === 'calc_error_neuron' || currentSubStep === 'calc_weight_grad_neuron');
+      (currentSubStep === 'calc_error_neuron' ||
+        currentSubStep === 'calc_weight_grad_neuron' ||
+        currentSubStep === 'propagate_error_neuron');
 
     const isHighlight = isFeedforwardHighlight || isBackpropHighlight;
 

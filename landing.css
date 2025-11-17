@@ -192,19 +192,18 @@ body::after {
   display: flex;
   flex-direction: column;
   gap: clamp(1.5rem, 2vw, 2.2rem);
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  align-items: center;
 }
 
-.hero-wrapper {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: clamp(1.5rem, 2.5vw, 3rem);
-  align-items: stretch;
-}
-
-.hero-content {
+.hero-primary {
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
+  max-width: min(760px, 100%);
+  align-items: center;
+  text-align: center;
 }
 
 .hero-visual {
@@ -219,6 +218,11 @@ body::after {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+}
+
+.hero-metrics,
+.hero-visual {
+  width: 100%;
 }
 
 .hero-orb {
@@ -263,13 +267,6 @@ body::after {
   font-size: 0.85rem;
   color: rgba(248, 250, 252, 0.9);
   background: rgba(15, 23, 42, 0.65);
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.8rem;
 }
 
 .signal-ring {

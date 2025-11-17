@@ -91,10 +91,6 @@ body::after {
   border-radius: 0;
   padding: 4vh 5vw;
   padding-top: 20px;
-  box-shadow:
-    var(--shadow-sm),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-    var(--shadow-glow);
   text-align: left;
   width: 100%;
   min-height: 100vh;
